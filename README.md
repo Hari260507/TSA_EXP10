@@ -14,58 +14,87 @@ To implement SARIMA model using python.
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_squared_error
 
-# Load the dataset
-data = pd.read_csv("/content/Tomato.csv")
+# Load the Tomato dataset
+data = pd.read_csv("Tomato.csv")
 
-# If there's a 'date' column, convert it to datetime — otherwise create a dummy one
+# If your file has a date column, use it; otherwise, create one
 if 'date' in data.columns:
     data['date'] = pd.to_datetime(data['date'])
-    data.set_index('date', inplace=True)
 else:
-    # If no date column exists, just use a numeric index for demonstration
-    data.index = pd.date_range(start='2020-01-01', periods=len(data), freq='D')
+    # Create a daily date range for demonstration (adjust frequency if needed)
+    data['date'] = pd.date_range(start='2020-01-01', periods=len(data), freq='D')
 
-# Show columns
-print("Available columns:", data.columns)
+# Set the date column as index
+data.set_index('date', inplace=True)
 
-# --- ARIMA Model Function ---
-def arima_model(data, target_variable, order):
-    train_size = int(len(data) * 0.8)
-    train_data, test_data = data[:train_size], data[train_size:]
-    
-    # Fit ARIMA model
-    model = ARIMA(train_data[target_variable], order=order)
-    fitted_model = model.fit()
-    
-    # Forecast
-    forecast = fitted_model.forecast(steps=len(test_data))
-    
-    # Compute RMSE
-    rmse = np.sqrt(mean_squared_error(test_data[target_variable], forecast))
-    
-    # Plot results
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_data.index, train_data[target_variable], label='Training Data')
-    plt.plot(test_data.index, test_data[target_variable], label='Testing Data')
-    plt.plot(test_data.index, forecast, label='Forecasted Data', color='orange')
-    plt.xlabel('Date')
-    plt.ylabel(target_variable)
-    plt.title('ARIMA Forecasting for ' + target_variable)
-    plt.legend()
-    plt.show()
-    
-    print("Root Mean Squared Error (RMSE):", rmse)
+# Plot the Average price over time
+plt.figure(figsize=(10, 5))
+plt.plot(data.index, data['Average'])
+plt.xlabel('Date')
+plt.ylabel('Average Tomato Price')
+plt.title('Tomato Average Price Time Series')
+plt.show()
 
-# Use the 'Average' column for forecasting
-arima_model(data, target_variable='Average', order=(5,1,0))
+# Function to check stationarity
+def check_stationarity(timeseries):
+    result = adfuller(timeseries)
+    print('ADF Statistic:', result[0])
+    print('p-value:', result[1])
+    print('Critical Values:')
+    for key, value in result[4].items():
+        print(f'\t{key}: {value}')
+
+# Check stationarity
+check_stationarity(data['Average'])
+
+# Plot ACF and PACF
+plot_acf(data['Average'])
+plt.show()
+
+plot_pacf(data['Average'])
+plt.show()
+
+# Train-test split
+train_size = int(len(data) * 0.8)
+train, test = data['Average'][:train_size], data['Average'][train_size:]
+
+# Fit SARIMA model
+sarima_model = SARIMAX(train, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+sarima_result = sarima_model.fit()
+
+# Forecast
+predictions = sarima_result.predict(start=len(train), end=len(train) + len(test) - 1)
+
+# Evaluate model
+mse = mean_squared_error(test, predictions)
+rmse = np.sqrt(mse)
+print('Root Mean Squared Error (RMSE):', rmse)
+
+# Plot actual vs predicted
+plt.figure(figsize=(10, 5))
+plt.plot(test.index, test, label='Actual', color='blue')
+plt.plot(test.index, predictions, label='Predicted', color='red')
+plt.xlabel('Date')
+plt.ylabel('Average Tomato Price')
+plt.title('SARIMA Model Predictions for Tomato Prices')
+plt.legend()
+plt.show()
+
+
 
 ```
 ### OUTPUT:
+<img width="1090" height="725" alt="image" src="https://github.com/user-attachments/assets/9c3a826c-d750-44af-945d-61ea9d410923" />
+<img width="712" height="552" alt="image" src="https://github.com/user-attachments/assets/bfb70d75-6d48-441e-9d79-bac356eb542b" />
+<img width="1279" height="655" alt="image" src="https://github.com/user-attachments/assets/27525ad1-91fe-4580-bb71-674432283f25" />
+<img width="1039" height="582" alt="image" src="https://github.com/user-attachments/assets/7258a58d-af91-487e-bf4b-11811ecbeb1c" />
 
-<img width="1083" height="738" alt="image" src="https://github.com/user-attachments/assets/34e3c091-f6d6-4800-9ba8-5b5e6803e604" />
+
 
 ### RESULT:
 Thus the program run successfully based on the SARIMA model.
